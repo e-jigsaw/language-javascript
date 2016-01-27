@@ -1010,6 +1010,16 @@
         ]
       }
       {
+        'begin': 'jade`'
+        'name': 'source.jade.embedded.html'
+        'end': '`'
+        'patterns': [
+          {
+            'include': 'source.jade'
+          }
+        ]
+      }
+      {
         'begin': '`'
         'beginCaptures':
           '0':
