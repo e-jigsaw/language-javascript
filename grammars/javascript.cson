@@ -1053,7 +1053,7 @@
       {
         'begin': 'jade`'
         'name': 'source.jade.embedded.html'
-        'end': '`'
+        'end': '\\s*(`)'
         'patterns': [
           {
             'include': 'source.jade'
