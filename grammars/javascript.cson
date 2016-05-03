@@ -1176,6 +1176,16 @@
         ]
       }
       {
+        'begin': 'pug`'
+        'name': 'source.jade.embedded.html'
+        'end': '\\s*(`)'
+        'patterns': [
+          {
+            'include': 'source.jade'
+          }
+        ]
+      }
+      {
         'begin': '((\\w+)?(html|HTML|Html))\\s*(`)'
         'beginCaptures':
           '1':
