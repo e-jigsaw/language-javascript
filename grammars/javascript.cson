@@ -7,8 +7,10 @@
   'gs'
   'htc'
   'jscad'
+  'jslib'
   'jsm'
   'json5'
+  'jspre'
   'pac'
   'pjs'
   'xsjs'
@@ -273,7 +275,7 @@
     'name': 'meta.export.js'
   }
   {
-    'match': '(?<!\\.)\\b(super|this)(?!\\s*:)\\b|(?<=\\?)(?:\\s*)(super|this)(?=\\s*:)'
+    'match': '(?<!\\.)\\b(super|this|arguments)(?!\\s*:)\\b|(?<=\\?)(?:\\s*)(super|this|arguments)(?=\\s*:)'
     'captures':
       '1':
         'name': 'variable.language.js'
@@ -317,7 +319,7 @@
       }
       {
         'begin': '\\G'
-        'end': '(?<=\\))'
+        'end': '(?!\\G)(?<=\\))'
         'name': 'meta.function.js'
         'patterns': [
           {
@@ -405,6 +407,32 @@
                 'name': 'punctuation.definition.string.end.js'
               '9':
                 'name': 'keyword.operator.assignment.js'
+          }
+          {
+            'include': '#function_innards'
+          }
+        ]
+      }
+    ]
+  }
+  {
+    'begin': '(?=\\b(constructor)\\s*)'
+    'end': '(?<=})'
+    'patterns': [
+      {
+        'include': '#comments'
+      }
+      {
+        'include': '#function_body'
+      }
+      {
+        'begin': '\\G'
+        'end': '(?<=\\))'
+        'name': 'meta.function.js'
+        'patterns': [
+          {
+            'match': '\\b(constructor)\\s*'
+            'name': 'entity.name.function.constructor.js'
           }
           {
             'include': '#function_innards'
@@ -650,18 +678,6 @@
         'name': 'storage.type.function.arrow.js'
   }
   {
-    'begin': '\\b(constructor)\\s*(?=\\()'
-    'beginCaptures':
-      '1':
-        'name': 'entity.name.function.constructor.js'
-    'end': '(?<=\\})'
-    'patterns': [
-      {
-        'include': '#function_params'
-      }
-    ]
-  }
-  {
     'match': '''(?x)
       \\b(class)
       (?:
@@ -679,13 +695,13 @@
       '2':
         'name': 'storage.modifier.js'
       '3':
-        'name': 'entity.name.type.js'
+        'name': 'entity.other.inherited-class.js'
       '4':
-        'name': 'entity.name.type.js'
+        'name': 'entity.name.type.class.js'
       '5':
         'name': 'storage.modifier.js'
       '6':
-        'name': 'entity.name.type.js'
+        'name': 'entity.other.inherited-class.js'
     'name': 'meta.class.js'
   }
   {
@@ -700,14 +716,24 @@
   {
     # console
     # console.log(arg1, "arg2", [...])
-    'begin': '\\bconsole\\b'
+    'begin': '(?<![\\w$])console(?![\\w$]|\\s*:)'
     'beginCaptures':
       '0':
         'name': 'entity.name.type.object.console.js'
-    'end': '(?!\\G)'
+    'end': '''(?x)
+      (?<=\\)) | (?=
+        (?! (\\s*//)|(\\s*/\\*)|(\\s*(\\.)\\s*
+          (assert|clear|debug|error|info|log|profile|profileEnd|time|timeEnd|warn)
+          \\s*\\(
+        )) \\s*\\S
+      )
+    '''
     'patterns': [
       {
-        'begin': '\\s*(\\.)\\s*(assert|clear|debug|error|info|log|profile|profileEnd|time|timeEnd|warn)\\s*(?=\\()'
+        'include': '#comments'
+      }
+      {
+        'begin': '\\s*(\\.)\\s*(\\w+)\\s*(?=\\()'
         'beginCaptures':
           '1':
             'name': 'meta.delimiter.method.period.js'
@@ -725,15 +751,28 @@
   }
   {
     # Math
-    'begin': '\\bMath\\b'
+    'begin': '(?<![\\w$])Math(?![\\w$]|\\s*:)'
     'beginCaptures':
       '0':
-        'name': 'support.class.js'
-    'end': '(?!\\G)'
+        'name': 'support.class.math.js'
+    'end': '''(?x)
+      (?<=E|LN10|LN2|LOG10E|LOG2E|PI|SQRT1_2|SQRT2|\\)
+      ) | (?=
+        (?! (\\s*//)|(\\s*/\\*)|(\\s*\\.\\s* (
+          ((abs|acos|acosh|asin|asinh|atan|atan2|atanh|cbrt|ceil|clz32|cos|cosh|exp|
+          expm1|floor|fround|hypot|imul|log|log10|log1p|log2|max|min|pow|random|
+          round|sign|sin|sinh|sqrt|tan|tanh|trunc)\\s*\\(
+          ) | (E|LN10|LN2|LOG10E|LOG2E|PI|SQRT1_2|SQRT2)(?!\\s*[\\w$(]))
+        )) \\s*\\S
+      )
+    '''
     'patterns': [
       {
+        'include': '#comments'
+      }
+      {
         # Math.random()
-        'begin': '\\s*(\\.)\\s*(abs|acos|acosh|asin|asinh|atan|atan2|atanh|cbrt|ceil|clz32|cos|cosh|exp|expm1|floor|fround|hypot|imul|log|log10|log1p|log2|max|min|pow|random|round|sign|sin|sinh|sqrt|tan|tanh|trunc)\\s*(?=\\()'
+        'begin': '\\s*(\\.)\\s*(\\w+)\\s*(?=\\()'
         'beginCaptures':
           '1':
             'name': 'meta.delimiter.method.period.js'
@@ -749,7 +788,7 @@
       }
       {
         # Math.PI
-        'match': '\\s*(\\.)\\s*(E|LN10|LN2|LOG10E|LOG2E|PI|SQRT1_2|SQRT2)\\b'
+        'match': '\\s*(\\.)\\s*(\\w+)\\b'
         'captures':
           '1':
             'name': 'meta.delimiter.property.period.js'
@@ -790,7 +829,7 @@
     'beginCaptures':
       '1':
         'name': 'storage.modifier.js'
-    'end': '(\\bof\\b|\\bin\\b)|(;)|(=)|(?<!,)\\n'
+    'end': '(\\bof\\b|\\bin\\b)|(;)|(=)|(?<![,{])\\n'
     'endCaptures':
       '1':
         'name': 'keyword.operator.$1.js'
@@ -884,14 +923,6 @@
         'name': 'constant.language.null.js'
   }
   {
-    'match': '(?<!\\.)\\b([A-Z][A-Z0-9_]+)(?!\\s*:)\\b|(?<=\\?)(?:\\s*)([A-Z][A-Z0-9_]+)(?=\\s*:)'
-    'captures':
-      '1':
-        'name': 'constant.other.js'
-      '2':
-        'name': 'constant.other.js'
-  }
-  {
     'match': '(?<!\\.)\\b(debugger)(?!\\s*:)\\b|(?<=\\?)(?:\\s*)(debugger)(?=\\s*:)'
     'captures':
       '1':
@@ -900,7 +931,7 @@
         'name': 'keyword.other.js'
   }
   {
-    'match': '(?<!\\$)\\b(Anchor|Applet|Area|Array|Boolean|Button|Checkbox|Date|document|event|FileUpload|Form|Frame|Function|Hidden|History|Image|JavaArray|JavaClass|JavaObject|JavaPackage|java|Layer|Link|Location|Map|Math|MimeType|Number|navigator|netscape|Object|Option|Packages|Password|Plugin|Radio|RegExp|Reset|Select|Set|String|Style|Submit|Symbol|screen|sun|Text|Textarea|WeakMap|WeakSet|window|XMLHttpRequest)\\b'
+    'match': '(?<!\\$)\\b(Anchor|Applet|Area|Array|Boolean|Button|Checkbox|Date|document|event|FileUpload|Form|Frame|Function|Hidden|History|Image|JavaArray|JavaClass|JavaObject|JavaPackage|java|Layer|Link|Location|Map|MimeType|Number|navigator|netscape|Object|Option|Packages|Password|Plugin|performance|Radio|RegExp|Reset|Select|Set|String|Style|Submit|Symbol|screen|sun|Text|Textarea|WeakMap|WeakSet|window|XMLHttpRequest)\\b'
     'name': 'support.class.js'
   }
   {
@@ -964,10 +995,18 @@
     'include': '#numbers'
   }
   {
-    'include': '#object_variable'
+    'include': '#objects'
   }
   {
     'include': '#properties'
+  }
+  {
+    'match': '(?<!\\.)\\b([A-Z][A-Z0-9_]+)(?!\\s*:)\\b|(?<=\\?)(?:\\s*)([A-Z][A-Z0-9_]+)(?=\\s*:)'
+    'captures':
+      '1':
+        'name': 'constant.other.js'
+      '2':
+        'name': 'constant.other.js'
   }
   {
     'match': '(?<!\\$)\\b[0-9]+[\\w$]*'
@@ -1211,17 +1250,17 @@
         ]
       }
       {
-        'begin': '((\\w+)?(css|CSS|Css))\\s*(`)'
+        'begin': '(Relay\\.QL)\\s*(`)'
         'beginCaptures':
           '1':
             'name': 'entity.name.function.js'
-          '4':
+          '2':
             'name': 'punctuation.definition.string.begin.js'
         'end': '`'
         'endCaptures':
           '0':
             'name': 'punctuation.definition.string.end.js'
-        'name': 'string.quoted.template.css.js'
+        'name': 'string.quoted.template.graphql.js'
         'patterns': [
           {
             'match': '\\\\(x\\h{2}|[0-2][0-7]{0,2}|3[0-6][0-7]?|37[0-7]?|[4-7][0-7]?|.)'
@@ -1231,7 +1270,7 @@
             'include': '#interpolated_js'
           }
           {
-            'include': 'source.css'
+            'include': 'source.graphql'
           }
         ]
       }
@@ -1487,32 +1526,65 @@
         ]
       }
     ]
-  'object_variable':
+  'objects':
     'patterns': [
       {
-        'comment': '`obj` in `obj.prop`, `obj.methodCall()`'
-        'match': '(?:([a-zA-Z_$][\\w$]*)|(\\d\\w*))(?=\\s*\\.\\s*[a-zA-Z_$]\\w*)'
-        'captures':
-          '1':
-            'name': 'variable.other.object.js'
-          '2':
-            'name': 'invalid.illegal.identifier.js'
+        # OBJ in OBJ.prop, OBJ.methodCall()
+        'match': '[A-Z][A-Z0-9_$]*(?=\\s*\\.\\s*[a-zA-Z_$]\\w*)'
+        'name': 'constant.other.object.js'
+      }
+      {
+        # obj in obj.prop, obj.methodCall()
+        'match': '[a-zA-Z_$][\\w$]*(?=\\s*\\.\\s*[a-zA-Z_$]\\w*)'
+        'name': 'variable.other.object.js'
       }
     ]
   'properties':
     'patterns': [
       {
-        'comment': '`prop` in `obj.prop`, `func().prop`'
-        'match': '(\\.)\\s*(?:([0-9]+[\\w$]*)|([A-Z][A-Z0-9_$]*\\b\\$*)|(\\$*[a-zA-Z_$][\\w$]*))'
+        # PROP1 in obj.PROP1.prop2, func().PROP1.prop2
+        'match': '(\\.)\\s*([A-Z][A-Z0-9_$]*\\b\\$*)(?=\\s*\\.\\s*[a-zA-Z_$]\\w*)'
+        'captures':
+          '1':
+            'name': 'meta.delimiter.property.period.js'
+          '2':
+            'name': 'constant.other.object.property.js'
+      }
+      {
+        # prop1 in obj.prop1.prop2, func().prop1.prop2
+        'match': '(\\.)\\s*(\\$*[a-zA-Z_$][\\w$]*)(?=\\s*\\.\\s*[a-zA-Z_$]\\w*)'
+        'captures':
+          '1':
+            'name': 'meta.delimiter.property.period.js'
+          '2':
+            'name': 'variable.other.object.property.js'
+      }
+      {
+        # PROP in obj.PROP, func().PROP
+        'match': '(\\.)\\s*([A-Z][A-Z0-9_$]*\\b\\$*)'
+        'captures':
+          '1':
+            'name': 'meta.delimiter.property.period.js'
+          '2':
+            'name': 'constant.other.property.js'
+      }
+      {
+        # prop in obj.prop, func().prop
+        'match': '(\\.)\\s*(\\$*[a-zA-Z_$][\\w$]*)'
+        'captures':
+          '1':
+            'name': 'meta.delimiter.property.period.js'
+          '2':
+            'name': 'variable.other.property.js'
+      }
+      {
+        # 123illegal in obj.123illegal, func().123illegal
+        'match': '(\\.)\\s*([0-9][\\w$]*)'
         'captures':
           '1':
             'name': 'meta.delimiter.property.period.js'
           '2':
             'name': 'invalid.illegal.identifier.js'
-          '3':
-            'name': 'constant.other.property.js'
-          '4':
-            'name': 'variable.other.property.js'
       }
     ]
   'interpolated_js':
