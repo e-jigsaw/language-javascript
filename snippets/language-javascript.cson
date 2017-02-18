@@ -11,6 +11,9 @@
   'do':
     'prefix': 'do'
     'body': 'do {\n\t$2\n} while (${1:true});'
+  'condition ? true : false':
+    'prefix': 'tern'
+    'body': '${1:condition} ? ${2:true} : ${3:false}'
   'if':
     'prefix': 'if'
     'body': 'if (${1:true}) {\n\t$2\n}'
@@ -38,6 +41,9 @@
   'Anonymous Function':
     'prefix': 'f'
     'body': 'function ($1) {\n\t$2\n}'
+  'Arrow Function':
+    'prefix': 'af'
+    'body': '($1) => {\n\t$2\n}'
   'Generator':
     'prefix': 'gen',
     'body': 'function* ${1:functionName}($2) {\n\t$0\n}'

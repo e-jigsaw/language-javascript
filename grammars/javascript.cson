@@ -1,5 +1,4 @@
 'scopeName': 'source.js'
-'name': 'JavaScript'
 'fileTypes': [
   'js'
   '_js'
@@ -14,6 +13,7 @@
   'jspre'
   'pac'
   'pjs'
+  'sjs'
   'xsjs'
   'xsjslib'
 ]
@@ -36,10 +36,11 @@
     (?=\\s|:|$)
   )
 '''
+'name': 'JavaScript'
 'patterns': [
   {
     # ES6 import
-    'begin': '(?<!\\.)\\b(import)(?!\\s*:)\\b'
+    'begin': '(?<!\\.)\\b(import)(?!\\s*[:(])\\b'
     'beginCaptures':
       '1':
         'name': 'keyword.control.js'
@@ -161,7 +162,7 @@
   }
   {
     # ES6 export, re-export: export {member as alias, [...]} [from ...]
-    'begin': '(?<!\\.)\\b(export)(?!\\s*:)\\b'
+    'begin': '(?<!\\.)\\b(export)(?!\\s*[:(])\\b'
     'beginCaptures':
       '1':
         'name': 'keyword.control.js'
@@ -297,7 +298,7 @@
     ]
   }
   {
-    'match': '(?<!\\.)\\b(?<!\\$)(super|this|arguments)(?!\\s*:|\\$)\\b'
+    'match': '(?:(?<=\\.{3})|(?<!\\.)\\b)(?<!\\$)(super|this|arguments)(?!\\s*:|\\$)\\b'
     'name': 'variable.language.js'
   }
   {
@@ -464,8 +465,8 @@
     'begin': '''(?x)
       (?=
         (?!
-          (break|case|catch|continue|do|else|finally|for|function|if|export|
-          import|package|return|switch|throw|try|while|with)
+          (break|case|catch|continue|do|else|finally|for|function|if|
+          package|return|switch|throw|try|while|with)
           [\\s\\(]
         )
         (
@@ -866,6 +867,15 @@
     'include': '#comments'
   }
   {
+    'match': '(<!--|-->)'
+    'captures':
+      '0':
+        'name': 'punctuation.definition.comment.html.js'
+      '2':
+        'name': 'punctuation.definition.comment.html.js'
+    'name': 'comment.block.html.js'
+  }
+  {
     'match': '(?<!\\.)\\b(class|enum|function|interface)(?!\\s*:)\\b'
     'name': 'storage.type.js'
   }
@@ -881,7 +891,7 @@
     'begin': '(?<!\\.)\\b(const)(?!\\s*:)\\b'
     'beginCaptures':
       '1':
-        'name': 'storage.modifier.js'
+        'name': 'storage.type.const.js'
     'end': '(\\bof\\b|\\bin\\b)|(;)|(=)|(?<![,{])\\n'
     'endCaptures':
       '1':
@@ -1167,7 +1177,7 @@
     'include': '#properties'
   }
   {
-    'match': '((?<!\\.|[\\w$])(?![_\\$]+[^A-Z0-9_$])\\$*\\b(?:[A-Z_$][A-Z0-9_$]*)\\b\\$*)(?!\\s*:)'
+    'match': '((?<!\\.|[\\w$])(?![_\\$]+[^A-Z0-9_$])\\$*\\b(?:[A-Z_$][A-Z0-9_$]*)\\b\\$*)'
     'name': 'constant.other.js'
   }
   {
@@ -1298,7 +1308,7 @@
         'name': 'keyword.operator.comparison.js'
       }
       {
-        'match': '&&|!|\\|\\|'
+        'match': '&&|!!|!|\\|\\|'
         'name': 'keyword.operator.logical.js'
       }
       {
@@ -1409,6 +1419,40 @@
         ]
       }
       {
+        'begin': '(?<=innerHTML)\\s*(\\+?=)\\s*(?=`)'
+        'beginCaptures':
+          '1':
+            'name': 'keyword.operator.assignment.js'
+        'end': '(?<=`)'
+        'endCaptures':
+          '0':
+            'name': 'punctuation.definition.string.end.js'
+        'contentName': 'string.quoted.template.html.js'
+        'patterns': [
+          {
+            'begin': '`'
+            'beginCaptures':
+              '0':
+                'name': 'punctuation.definition.string.begin.js'
+            'end': '`'
+            'endCaptures':
+              '0':
+                'name': 'punctuation.definition.string.end.js'
+            'patterns': [
+              {
+                'include': '#string_escapes'
+              }
+              {
+                'include': '#interpolated_js'
+              }
+              {
+                'include': 'text.html.basic'
+              }
+            ]
+          }
+        ]
+      }
+      {
         'begin': '(Relay\\.QL)\\s*(`)'
         'beginCaptures':
           '1':
@@ -1429,6 +1473,30 @@
           }
           {
             'include': 'source.graphql'
+          }
+        ]
+      }
+      {
+        'begin': '(sql|SQL|Sql)\\s*(`)'
+        'beginCaptures':
+          '1':
+            'name': 'entity.name.function.js'
+          '2':
+            'name': 'punctuation.definition.string.begin.js'
+        'end': '`'
+        'endCaptures':
+          '0':
+            'name': 'punctuation.definition.string.end.js'
+        'name': 'string.quoted.template.sql.js'
+        'patterns': [
+          {
+            'include': '#string_escapes'
+          }
+          {
+            'include': '#interpolated_js'
+          }
+          {
+            'include': 'source.sql'
           }
         ]
       }
@@ -1878,7 +1946,7 @@
                   | tutorial
                 )
               )
-              
+
               \\s+
 
               ([^\\s|}]+)        # Namepath or URL
@@ -1906,74 +1974,145 @@
           (?:(?<=@param)|(?<=@arg)|(?<=@argument)|(?<=@type))
           \\s+
           ({(?:
-            \\* |                                        # {*} any type
-            \\? |                                        # {?} unknown type
-
-            (?:                                          # Check for a prefix
-              \\? |                                      # {?string} nullable type
-              !   |                                      # {!string} non-nullable type
-              \\.{3}                                     # {...string} variable number of parameters
-            )?
+            \\* |                                       # {*} any type
+            \\? |                                       # {?} unknown type
 
             (?:
-              \\(                                        # Opening bracket of multiple types with parenthesis {(string|number)}
-                [a-zA-Z_$]+
+              (?:                                       # Check for a prefix
+                \\? |                                   # {?string} nullable type
+                !   |                                   # {!string} non-nullable type
+                \\.{3}                                  # {...string} variable number of parameters
+                [*?]?                                   # {...*} Variable number of mixed types
+              )?
+
+              (?:
                 (?:
+                  function                              # {function(string, number)} function type
+                  \\s*
                   (?:
-                    [\\w$]*
-                    (?:\\[\\])?                          # {(string[]|number)} type application, an array of strings or a number
-                  ) |
-                  \\.?<[\\w$]+(?:,\\s+[\\w$]+)*>         # {Array<string>} or {Object<string, number>} type application (optional .)
-                )
+                    (?:
+                      \\(\\s*
+                      \\.{3}[a-zA-Z_$][\\w$]+           # {function(...string)} variable number of parameters
+                      \\s*\\)
+                    )
+                    |
+                    (?:
+                      \\(\\s*
+                      (?:
+                        (?:\\?|!)?                      # {function(?string)} or function(!string)} nullable/non-nullable type
+                        [a-zA-Z_$][\\w$]+
+                        (?:\\[\\])?                     # {function(string[])} type application, an array of strings
+                        (?:
+                          (?:
+                            (?:
+                              \\s*,\\s*
+                              (?:\\?|!)?                # {function(?string)} or function(!string)} nullable/non-nullable type
+                              [a-zA-Z_$][\\w$]+
+                              (?:\\[\\])?               # {function(string[])} type application, an array of strings
+                            )*
+                            (?:
+                              \\s*,\\s*
+                              \\.{3}[a-zA-Z_$][\\w$]+   # {function(string, ...string)} variable number of parameters
+                            )?
+                          )
+                          |
+                          (?:
+                            =?                          # {function(string=)} optional parameter
+                            (?:
+                              (?<!=)                    # {function(string, string, number)} loop non-optional params
+                              \\s*,\\s*
+                              (?:\\?|!)?                # {function(?string)} or function(!string)} nullable/non-nullable type
+                              [a-zA-Z_$][\\w$]+
+                              (?:\\[\\])?               # {function(string[])} type application, an array of strings
+                              =?
+                            )*
+                            (?:
+                              (?<==)                    # {function(string, string=, number=)} loop optional params
+                              \\s*,\\s*
+                              (?:\\?|!)?                # {function(?string)} or function(!string)} nullable/non-nullable type
+                              [a-zA-Z_$][\\w$]+
+                              (?:\\[\\])?               # {function(string[])} type application, an array of strings
+                              =
+                            )*
+                          )
+                        )
+                      )?
+                      \\s*\\)
+                    )
+                  )
+                  (?:                                   # {function(): string} function return type
+                    \\s*:\\s*
+                    [a-zA-Z_$][\\w$]*
+                  )?
+                )?
+                |
                 (?:
-                  [\\.|~]                                # {Foo.bar} namespaced, {string|number} multiple, {Foo~bar} class-specific callback
+                  \\(                                   # Opening bracket of multiple types with parenthesis {(string|number)}
+                    [a-zA-Z_$]+
+                    (?:
+                      (?:
+                        [\\w$]*
+                        (?:\\[\\])?                     # {(string[]|number)} type application, an array of strings or a number
+                      ) |
+                      \\.?<[\\w$]+(?:,\\s+[\\w$]+)*>    # {Array<string>} or {Object<string, number>} type application (optional .)
+                    )
+                    (?:
+                      [\\.|~]                           # {Foo.bar} namespaced, {string|number} multiple, {Foo~bar} class-specific callback
+                      [a-zA-Z_$]+
+                      (?:
+                        (?:
+                          [\\w$]*
+                          (?:\\[\\])?                   # {(string|number[])} type application, a string or an array of numbers
+                        ) |
+                        \\.?<[\\w$]+(?:,\\s+[\\w$]+)*>  # {Array<string>} or {Object<string, number>} type application (optional .)
+                      )
+                    )*
+                  \\) |
                   [a-zA-Z_$]+
                   (?:
                     (?:
                       [\\w$]*
-                      (?:\\[\\])?                        # {(string|number[])} type application, a string or an array of numbers
+                      (?:\\[\\])?                       # {(string|number[])} type application, a string or an array of numbers
                     ) |
-                    \\.?<[\\w$]+(?:,\\s+[\\w$]+)*>       # {Array<string>} or {Object<string, number>} type application (optional .)
+                    \\.?<[\\w$]+(?:,\\s+[\\w$]+)*>      # {Array<string>} or {Object<string, number>} type application (optional .)
                   )
-                )*
-              \\) |
-              [a-zA-Z_$]+
-              (?:
-                (?:
-                  [\\w$]*
-                  (?:\\[\\])?                            # {string[]|number} type application, an array of strings or a number
-                ) |
-                \\.?<[\\w$]+(?:,\\s+[\\w$]+)*>           # {Array<string>} or {Object<string, number>} type application (optional .)
-              )
-              (?:
-                [\\.|~]                                  # {Foo.bar} namespaced, {string|number} multiple, {Foo~bar} class-specific callback
-                [a-zA-Z_$]+
-                (?:
-                  [\\w$]* |
-                  \\.?<[\\w$]+(?:,\\s+[\\w$]+)*>         # {Array<string>} or {Object<string, number>} type application (optional .)
+                  (?:
+                    [\\.|~]                             # {Foo.bar} namespaced, {string|number} multiple, {Foo~bar} class-specific callback
+                    [a-zA-Z_$]+
+                    (?:
+                      [\\w$]* |
+                      \\.?<[\\w$]+(?:,\\s+[\\w$]+)*>    # {Array<string>} or {Object<string, number>} type application (optional .)
+                    )
+                  )*
                 )
-              )*
+              )
+                                                        # Check for suffix
+              (?:\\[\\])?                               # {string[]} type application, an array of strings
+              =?                                        # {string=} optional parameter
             )
-                                                         # Check for suffix
-            (?:\\[\\])?                                  # {string[]} type application, an array of strings
-            =?                                           # {string=} optional parameter
           )})
           \\s+
           (
-            \\[                                          # [foo] optional parameter
+            \\[                                         # [foo] optional parameter
               \\s*
               (?:
                 [a-zA-Z_$][\\w$]*
                 (?:
-                  (?:\\[\\])?                            # Foo[].bar properties within an array
-                  \\.                                    # Foo.Bar namespaced parameter
+                  (?:\\[\\])?                           # Foo[].bar properties within an array
+                  \\.                                   # Foo.Bar namespaced parameter
                   [a-zA-Z_$][\\w$]*
                 )*
                 (?:
                   \\s*
-                  =                                      # [foo=bar] Default parameter value
+                  =                                     # [foo=bar] Default parameter value
                   \\s*
-                  [\\w$\\s]*
+                  (?:
+                    [\\w$.\\s]* |                       # [foo=bar] Unquoted
+                    "[^"]*"     |                       # [foo="bar"] Double-quoted
+                    '[^']*'     |                       # [foo='bar'] Single-quoted
+                    {[^{}]*}    |                       # [foo={a:1}] Object literal
+                    \\[ [^\\[\\]]* \\]                  # [foo=[1,2]] Array literal
+                  )
                 )?
               )
               \\s*
@@ -1981,8 +2120,8 @@
             (?:
               [a-zA-Z_$][\\w$]*
               (?:
-                (?:\\[\\])?                              # Foo[].bar properties within an array
-                \\.                                      # Foo.Bar namespaced parameter
+                (?:\\[\\])?                             # Foo[].bar properties within an array
+                \\.                                     # Foo.Bar namespaced parameter
                 [a-zA-Z_$][\\w$]*
               )*
             )?
@@ -2000,56 +2139,135 @@
             'name': 'variable.other.jsdoc'
           '3':
             'name': 'other.description.jsdoc'
+            'patterns': [
+              {
+                'include': '#docblock'
+              }
+            ]
       }
       {
         'match': '''(?x)
           ({(?:
-            \\* |                                        # {*} any type
-            \\? |                                        # {?} unknown type
-
-            (?:                                          # Check for a prefix
-              \\? |                                      # {?string} nullable type
-              !   |                                      # {!string} non-nullable type
-              \\.{3}                                     # {...string} variable number of parameters
-            )?
+            \\* |                                       # {*} any type
+            \\? |                                       # {?} unknown type
 
             (?:
-              \\(                                        # Opening bracket of multiple types with parenthesis {(string|number)}
-                [a-zA-Z_$]+
+              (?:                                       # Check for a prefix
+                \\? |                                   # {?string} nullable type
+                !   |                                   # {!string} non-nullable type
+                \\.{3}                                  # {...string} variable number of parameters
+                [*?]?                                   # {...*} Variable number of mixed types
+              )?
+
+              (?:
                 (?:
-                  [\\w$]* |
-                  \\.?<[\\w$]+(?:,\\s+[\\w$]+)*>         # {Array<string>} or {Object<string, number>} type application (optional .)
-                )
+                  function                              # {function(string, number)} function type
+                  \\s*
+                  (?:
+                    (?:
+                      \\(\\s*
+                      \\.{3}[a-zA-Z_$][\\w$]+           # {function(...string)} variable number of parameters
+                      \\s*\\)
+                    )
+                    |
+                    (?:
+                      \\(\\s*
+                      (?:
+                        (?:\\?|!)?                      # {function(?string)} or function(!string)} nullable/non-nullable type
+                        [a-zA-Z_$][\\w$]+
+                        (?:\\[\\])?                     # {function(string[])} type application, an array of strings
+                        (?:
+                          (?:
+                            (?:
+                              \\s*,\\s*
+                              (?:\\?|!)?                # {function(?string)} or function(!string)} nullable/non-nullable type
+                              [a-zA-Z_$][\\w$]+
+                              (?:\\[\\])?               # {function(string[])} type application, an array of strings
+                            )*
+                            (?:
+                              \\s*,\\s*
+                              \\.{3}[a-zA-Z_$][\\w$]+   # {function(string, ...string)} variable number of parameters
+                            )?
+                          )
+                          |
+                          (?:
+                            =?                          # {function(string=)} optional parameter
+                            (?:
+                              (?<!=)                    # {function(string, string, number)} loop non-optional params
+                              \\s*,\\s*
+                              (?:\\?|!)?                # {function(?string)} or function(!string)} nullable/non-nullable type
+                              [a-zA-Z_$][\\w$]+
+                              (?:\\[\\])?               # {function(string[])} type application, an array of strings
+                              =?
+                            )*
+                            (?:
+                              (?<==)                    # {function(string, string=, number=)} loop optional params
+                              \\s*,\\s*
+                              (?:\\?|!)?                # {function(?string)} or function(!string)} nullable/non-nullable type
+                              [a-zA-Z_$][\\w$]+
+                              (?:\\[\\])?               # {function(string[])} type application, an array of strings
+                              =
+                            )*
+                          )
+                        )
+                      )?
+                      \\s*\\)
+                    )
+                  )
+                  (?:                                   # {function(): string} function return type
+                    \\s*:\\s*
+                    [a-zA-Z_$][\\w$]*
+                  )?
+                )?
+                |
                 (?:
-                  [\\.|~]                                # {Foo.bar} namespaced, {string|number} multiple, {Foo~bar} class-specific callback
+                  \\(                                   # Opening bracket of multiple types with parenthesis {(string|number)}
+                    [a-zA-Z_$]+
+                    (?:
+                      (?:
+                        [\\w$]*
+                        (?:\\[\\])?                     # {(string[]|number)} type application, an array of strings or a number
+                      ) |
+                      \\.?<[\\w$]+(?:,\\s+[\\w$]+)*>    # {Array<string>} or {Object<string, number>} type application (optional .)
+                    )
+                    (?:
+                      [\\.|~]                           # {Foo.bar} namespaced, {string|number} multiple, {Foo~bar} class-specific callback
+                      [a-zA-Z_$]+
+                      (?:
+                        (?:
+                          [\\w$]*
+                          (?:\\[\\])?                   # {(string|number[])} type application, a string or an array of numbers
+                        ) |
+                        \\.?<[\\w$]+(?:,\\s+[\\w$]+)*>  # {Array<string>} or {Object<string, number>} type application (optional .)
+                      )
+                    )*
+                  \\) |
                   [a-zA-Z_$]+
                   (?:
-                    [\\w$]* |
-                    \\.?<[\\w$]+(?:,\\s+[\\w$]+)*>       # {Array<string>} or {Object<string, number>} type application (optional .)
+                    (?:
+                      [\\w$]*
+                      (?:\\[\\])?                       # {(string|number[])} type application, a string or an array of numbers
+                    ) |
+                    \\.?<[\\w$]+(?:,\\s+[\\w$]+)*>      # {Array<string>} or {Object<string, number>} type application (optional .)
                   )
-                )*
-              \\) |
-              [a-zA-Z_$]+
-              (?:
-                [\\w$]* |
-                \\.?<[\\w$]+(?:,\\s+[\\w$]+)*>           # {Array<string>} or {Object<string, number>} type application (optional .)
-              )
-              (?:
-                [\\.|~]                                  # {Foo.bar} namespaced, {string|number} multiple, {Foo~bar} class-specific callback
-                [a-zA-Z_$]+
-                (?:
-                  [\\w$]* |
-                  \\.?<[\\w$]+(?:,\\s+[\\w$]+)*>         # {Array<string>} or {Object<string, number>} type application (optional .)
+                  (?:
+                    [\\.|~]                             # {Foo.bar} namespaced, {string|number} multiple, {Foo~bar} class-specific callback
+                    [a-zA-Z_$]+
+                    (?:
+                      [\\w$]* |
+                      \\.?<[\\w$]+(?:,\\s+[\\w$]+)*>    # {Array<string>} or {Object<string, number>} type application (optional .)
+                    )
+                  )*
                 )
-              )*
+              )
+                                                        # Check for suffix
+              (?:\\[\\])?                               # {string[]} type application, an array of strings
+              =?                                        # {string=} optional parameter
             )
-                                                         # Check for suffix
-            (?:\\[\\])?                                  # {string[]} type application, an array of strings
-            =?                                           # {string=} optional parameter
           )})
           \\s+
-          (?:-\\s+)?                                     # optional hyphen before the description
-          ((?:(?!\\*\\/).)*)                             # The type description
+          (?:-\\s+)?                                    # optional hyphen before the description
+          ((?:(?!\\*\\/).)*)                            # The type description
         '''
         'captures':
           '0':
@@ -2058,6 +2276,11 @@
             'name': 'entity.name.type.instance.jsdoc'
           '2':
             'name': 'other.description.jsdoc'
+            'patterns': [
+              {
+                'include': '#docblock'
+              }
+            ]
       }
     ]
   'comments':
@@ -2090,29 +2313,12 @@
         'name': 'comment.block.js'
       }
       {
-        'begin': '(^[ \\t]+)?(?=//)'
-        'beginCaptures':
-          '1':
-            'name': 'punctuation.whitespace.comment.leading.js'
-        'end': '(?!\\G)'
-        'patterns': [
-          {
-            'begin': '//'
-            'beginCaptures':
-              '0':
-                'name': 'punctuation.definition.comment.js'
-            'end': '\\n'
-            'name': 'comment.line.double-slash.js'
-          }
-        ]
-      }
-      {
-        'begin': '<!--|-->'
+        'begin': '//'
         'beginCaptures':
           '0':
-            'name': 'punctuation.definition.comment.html.js'
+            'name': 'punctuation.definition.comment.js'
         'end': '$'
-        'name': 'comment.line.deprecated.html.js'
+        'name': 'comment.line.double-slash.js'
       }
     ]
   'switch_statement':
